@@ -29,25 +29,12 @@ async function startScanner() {
     }
 
     // Create scanner
-    if (!codeReader) {
+   if (!codeReader) {
 
-      const hints = new Map();
+  codeReader =
+    new ZXing.BrowserMultiFormatReader();
 
-      hints.set(
-        ZXing.DecodeHintType.POSSIBLE_FORMATS,
-        [
-          ZXing.BarcodeFormat.UPC_A,
-          ZXing.BarcodeFormat.UPC_E,
-          ZXing.BarcodeFormat.EAN_13,
-          ZXing.BarcodeFormat.EAN_8
-        ]
-      );
-
-      codeReader =
-        new ZXing.BrowserMultiFormatReader(hints);
-
-    }
-
+}
     // Start camera
     stream =
       await navigator.mediaDevices.getUserMedia({
