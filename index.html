@@ -74,6 +74,10 @@ input {
   id="barcode"
   placeholder="Scanned barcode">
 
+<button onclick="submitBarcode()">
+  Submit Barcode
+</button>
+
 <script>
 
 let codeReader = null;
@@ -100,12 +104,11 @@ async function startScanner() {
 
   try {
 
-    // stop previous scanner
+    // stop old scanner
     if (controls) {
       controls.stop();
     }
 
-    // UPC focused scanner
     const hints = new Map();
 
     hints.set(
@@ -126,7 +129,6 @@ async function startScanner() {
 
         {
           video: {
-
             facingMode: {
               ideal: "environment"
             },
@@ -138,13 +140,12 @@ async function startScanner() {
             height: {
               ideal: 1080
             }
-
           }
         },
 
         video,
 
-        async (result, err) => {
+        (result, err) => {
 
           if (result && scanning) {
 
@@ -155,66 +156,19 @@ async function startScanner() {
 
             barcodeInput.value = code;
 
-            // STOP CAMERA
-            controls.stop();
-
-            // BEEP
-            const beep =
-              new Audio(
-                "https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"
-              );
-
-            beep.play();
-
-            // VIBRATE
-            if (navigator.vibrate) {
-              navigator.vibrate(300);
-            }
-
             status.innerText =
-              "Submitting: " + code;
+              "UPC Captured";
 
-            try {
-
-              // AUTO SUBMIT TO SHEET
-              const response =
-                await fetch(
-                  "https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec",
-                  {
-                    method: "POST",
-
-                    headers: {
-                      "Content-Type":
-                        "application/json"
-                    },
-
-                    body: JSON.stringify({
-                      barcode: code
-                    })
-                  }
-                );
-
-              const text =
-                await response.text();
-
-              status.innerText =
-                "✅ Added to Inventory";
-
-              console.log(text);
-
+            // vibration feedback
+            if (navigator.vibrate) {
+              navigator.vibrate(200);
             }
 
-            catch (submitErr) {
-
-              console.error(submitErr);
-
-              status.innerText =
-                "❌ Failed sending to sheet";
-            }
+            // stop camera
+            controls.stop();
 
           }
 
-          // ignore normal misses
           if (
             err &&
             !(err instanceof ZXing.NotFoundException)
@@ -239,6 +193,71 @@ async function startScanner() {
 
     status.innerText =
       "Camera error: " + e.message;
+
+  }
+
+}
+
+async function submitBarcode() {
+
+  const status =
+    document.getElementById("status");
+
+  const barcode =
+    document.getElementById("barcode")
+      .value
+      .trim();
+
+  if (!barcode) {
+
+    status.innerText =
+      "No barcode scanned";
+
+    return;
+  }
+
+  status.innerText =
+    "Submitting...";
+
+  try {
+
+    const response =
+      await fetch(
+        "YOUR_WEBAPP_URL_HERE",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+            barcode: barcode
+          })
+        }
+      );
+
+    const text =
+      await response.text();
+
+    console.log(text);
+
+    status.innerText =
+      "✅ Added to Inventory";
+
+    // clear barcode
+    document.getElementById("barcode")
+      .value = "";
+
+  }
+
+  catch (e) {
+
+    console.error(e);
+
+    status.innerText =
+      "❌ Submit failed";
 
   }
 
