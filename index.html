@@ -1,75 +1,108 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- IMPORTANT: use stable ZXing build (NOT @latest) -->
-<script src="https://unpkg.com/@zxing/library@latest"></script>
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
 
-<style>
-body {
-  font-family: Arial;
-  margin: 0;
-  padding: 10px;
-  text-align: center;
-}
+  <!-- ZXing Barcode Library -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
 
-video {
-  width: 100%;
-  border-radius: 12px;
-  margin-top: 10px;
-}
+  <style>
 
-button {
-  width: 100%;
-  padding: 15px;
-  font-size: 18px;
-  margin-top: 10px;
-  background: #4285f4;
-  color: white;
-  border: none;
-  border-radius: 10px;
-}
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 10px;
+      text-align: center;
+    }
 
-input {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-}
+    h2 {
+      margin-bottom: 15px;
+    }
 
-#status {
-  margin-top: 10px;
-  font-weight: bold;
-}
-</style>
+    video {
+      width: 100%;
+      max-height: 350px;
+      border-radius: 12px;
+      background: black;
+      margin-top: 10px;
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      font-size: 18px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 10px;
+      background: #4285f4;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:active {
+      background: #3367d6;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    #status {
+      margin-top: 12px;
+      font-weight: bold;
+      min-height: 24px;
+    }
+
+  </style>
+
 </head>
 
 <body>
 
-<h2>Barcode Scanner</h2>
+<h2>Household Inventory Scanner</h2>
 
-<button onclick="startScanner()">Start Scan</button>
+<button onclick="startScanner()">
+  Start Scan
+</button>
 
 <video id="video"></video>
 
 <div id="status"></div>
 
-<input id="barcode" placeholder="Scanned barcode">
-
-<script>
-
-let codeReader;
+<input
+  id="barcode"
+  placeholder="Scanned barcode">
 
 <script>
 
 let codeReader = null;
-let stream = null;
 let scanning = false;
+let stream = null;
 
 async function startScanner() {
 
-  const status = document.getElementById("status");
-  const video = document.getElementById("video");
+  if (scanning) return;
+
+  scanning = true;
+
+  const status =
+    document.getElementById("status");
+
+  const video =
+    document.getElementById("video");
+
+  const barcodeInput =
+    document.getElementById("barcode");
 
   status.innerText = "Starting camera...";
 
@@ -77,74 +110,119 @@ async function startScanner() {
 
     // stop old stream if exists
     if (stream) {
-      stream.getTracks().forEach(t => t.stop());
+      stream.getTracks().forEach(track => track.stop());
     }
 
-    codeReader = new ZXing.BrowserMultiFormatReader();
+    // initialize scanner once
+    if (!codeReader) {
+      codeReader =
+        new ZXing.BrowserMultiFormatReader();
+    }
 
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" }
-    });
+    // request camera
+    stream =
+      await navigator.mediaDevices.getUserMedia({
+
+        video: {
+          facingMode: "environment",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+
+      });
 
     video.srcObject = stream;
+
     video.setAttribute("playsinline", true);
+
     await video.play();
 
-    scanning = true;
     status.innerText = "Scanning...";
 
     codeReader.decodeFromVideoDevice(
+
       null,
       video,
+
       (result, err) => {
 
         if (!scanning) return;
 
+        // barcode detected
         if (result) {
 
           scanning = false;
 
           const code = result.getText();
 
-          document.getElementById("barcode").value = code;
+          barcodeInput.value = code;
 
-          status.innerText = "Scanned: " + code;
+          status.innerText =
+            "Scanned: " + code;
 
-          // stop camera properly
+          // vibration feedback
+          if (navigator.vibrate) {
+            navigator.vibrate(200);
+          }
+
+          // stop camera
           if (stream) {
-            stream.getTracks().forEach(t => t.stop());
+            stream
+              .getTracks()
+              .forEach(track => track.stop());
           }
 
           codeReader.reset();
 
-          sendToSheet(code);
+          // SEND TO APPS SCRIPT
+          fetch(
+            "https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type": "application/json"
+              },
+
+              body: JSON.stringify({
+                barcode: code
+              })
+            }
+          )
+          .then(response => response.text())
+          .then(data => {
+            console.log(data);
+          })
+          .catch(error => {
+            console.error(error);
+            status.innerText =
+              "Error sending to sheet";
+          });
+
         }
 
-        if (err && !(err instanceof ZXing.NotFoundException)) {
+        // ignore normal scan misses
+        if (
+          err &&
+          !(err instanceof ZXing.NotFoundException)
+        ) {
           console.log(err);
         }
+
       }
+
     );
 
   } catch (e) {
+
     console.error(e);
-    status.innerText = "Camera error: " + e;
+
+    scanning = false;
+
+    status.innerText =
+      "Camera error: " + e.message;
   }
 }
-
-function sendToSheet(code) {
-
-  fetch("YOUR_APPS_SCRIPT_URL_HERE", {
-    method: "POST",
-    body: JSON.stringify({ barcode: code }),
-    headers: {
-      "Content-Type": "application/json"
-    }
-  });
-
-}
-
-</script>
 
 </script>
 
