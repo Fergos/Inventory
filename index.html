@@ -85,8 +85,8 @@ input {
 <script>
 
 let codeReader = null;
-let scanning = false;
 let stream = null;
+let scanning = false;
 
 async function startScanner() {
 
@@ -103,28 +103,25 @@ async function startScanner() {
   const barcodeInput =
     document.getElementById("barcode");
 
-  status.innerText = "Starting camera...";
+  status.innerText =
+    "Starting camera...";
 
   try {
 
-    // stop old stream
+    // stop old camera
     if (stream) {
 
-      stream.getTracks().forEach(track => {
-        track.stop();
-      });
+      stream
+        .getTracks()
+        .forEach(track => track.stop());
 
     }
 
     // create scanner
-    if (!codeReader) {
+    codeReader =
+      new ZXing.BrowserMultiFormatReader();
 
-      codeReader =
-        new ZXing.BrowserMultiFormatReader();
-
-    }
-
-    // request camera
+    // open camera
     stream =
       await navigator.mediaDevices.getUserMedia({
 
@@ -140,7 +137,9 @@ async function startScanner() {
             ideal: 720
           }
 
-        }
+        },
+
+        audio: false
 
       });
 
@@ -153,8 +152,10 @@ async function startScanner() {
 
     await video.play();
 
-    status.innerText = "Scanning...";
+    status.innerText =
+      "Scanning...";
 
+    // START BARCODE SCAN
     codeReader.decodeFromVideoDevice(
 
       null,
@@ -162,15 +163,17 @@ async function startScanner() {
 
       (result, err) => {
 
-        if (!scanning) return;
-
         // SUCCESS
         if (result) {
 
-          scanning = false;
-
           const code =
+            result.text ||
             result.getText();
+
+          console.log(
+            "FOUND:",
+            code
+          );
 
           barcodeInput.value =
             code;
@@ -178,9 +181,9 @@ async function startScanner() {
           status.innerText =
             "Scanned: " + code;
 
-          console.log(result);
+          scanning = false;
 
-          // vibration
+          // vibrate phone
           if (navigator.vibrate) {
 
             navigator.vibrate(200);
@@ -192,15 +195,13 @@ async function startScanner() {
 
             stream
               .getTracks()
-              .forEach(track => {
-                track.stop();
-              });
+              .forEach(track => track.stop());
 
           }
 
           codeReader.reset();
 
-          // SEND TO APPS SCRIPT
+          // send to Apps Script
           fetch(
             "https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec",
             {
@@ -219,9 +220,7 @@ async function startScanner() {
             }
           )
 
-          .then(response => {
-            return response.text();
-          })
+          .then(r => r.text())
 
           .then(data => {
 
@@ -243,7 +242,7 @@ async function startScanner() {
         // ignore normal misses
         if (
           err &&
-          !(err instanceof ZXing.NotFoundException)
+          err.name !== "NotFoundException"
         ) {
 
           console.log(err);
