@@ -76,8 +76,8 @@ input {
 
 <script>
 
-let codeReader;
-let controls;
+let codeReader = null;
+let controls = null;
 
 async function startScanner() {
 
@@ -94,58 +94,30 @@ async function startScanner() {
 
   try {
 
-    // stop previous scan
+    // stop previous scanner
     if (controls) {
       controls.stop();
     }
 
+    // create scanner
     codeReader =
       new ZXing.BrowserMultiFormatReader();
 
-    // THIS IS THE FIX
-    const devices =
-      await codeReader.listVideoInputDevices();
-
-    if (devices.length === 0) {
-
-      status.innerText =
-        "No camera found";
-
-      return;
-    }
-
-    // prefer rear camera
-    let selectedDeviceId =
-      devices[0].deviceId;
-
-    devices.forEach(device => {
-
-      const label =
-        device.label.toLowerCase();
-
-      if (
-        label.includes("back") ||
-        label.includes("rear")
-      ) {
-
-        selectedDeviceId =
-          device.deviceId;
-      }
-
-    });
-
-    status.innerText =
-      "Scanning UPC...";
-
+    // start scanning
     controls =
-      await codeReader.decodeFromVideoDevice(
+      await codeReader.decodeFromConstraints(
 
-        selectedDeviceId,
+        {
+          video: {
+            facingMode: "environment"
+          }
+        },
 
         video,
 
         (result, err) => {
 
+          // SUCCESS
           if (result) {
 
             const code =
@@ -164,7 +136,7 @@ async function startScanner() {
             // stop scanner
             controls.stop();
 
-            // send barcode
+            // send barcode to Apps Script
             fetch(
               "https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec",
               {
@@ -182,6 +154,7 @@ async function startScanner() {
 
           }
 
+          // ignore normal misses
           if (
             err &&
             !(err instanceof ZXing.NotFoundException)
@@ -192,6 +165,9 @@ async function startScanner() {
         }
 
       );
+
+    status.innerText =
+      "Scanning UPC...";
 
   }
 
