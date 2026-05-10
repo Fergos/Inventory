@@ -115,19 +115,39 @@ async function startScanner() {
 
     // initialize scanner once
     if (!codeReader) {
-      codeReader =
-        new ZXing.BrowserMultiFormatReader();
-    }
+     const hints = new Map();
 
+hints.set(
+  ZXing.DecodeHintType.POSSIBLE_FORMATS,
+  [
+    ZXing.BarcodeFormat.UPC_A,
+    ZXing.BarcodeFormat.UPC_E,
+    ZXing.BarcodeFormat.EAN_13,
+    ZXing.BarcodeFormat.EAN_8
+  ]
+);
+
+codeReader =
+  new ZXing.BrowserMultiFormatReader(hints);
     // request camera
     stream =
       await navigator.mediaDevices.getUserMedia({
 
         video: {
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
+  facingMode: {
+    ideal: "environment"
+  },
+
+  width: {
+    ideal: 1920
+  },
+
+  height: {
+    ideal: 1080
+  },
+
+  focusMode: "continuous"
+}
 
       });
 
