@@ -1,3 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1">
+
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+
+<style>
+
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  margin: 0;
+  padding: 10px;
+  text-align: center;
+}
+
+h2 {
+  margin-bottom: 15px;
+}
+
+video {
+  width: 100%;
+  max-height: 350px;
+  border-radius: 12px;
+  background: black;
+  margin-top: 10px;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  font-size: 18px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #4285f4;
+  color: white;
+  cursor: pointer;
+}
+
+button:active {
+  background: #3367d6;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+#status {
+  margin-top: 12px;
+  font-weight: bold;
+  min-height: 24px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>Household Inventory Scanner</h2>
+
+<button onclick="startScanner()">
+  Start Scan
+</button>
+
+<video id="video"></video>
+
+<div id="status"></div>
+
+<input
+  id="barcode"
+  placeholder="Scanned barcode">
+
 <script>
 
 let codeReader = null;
@@ -23,34 +107,37 @@ async function startScanner() {
 
   try {
 
-    // Stop old stream
+    // stop old stream
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+
+      stream.getTracks().forEach(track => {
+        track.stop();
+      });
+
     }
 
-    // Create scanner
-   if (!codeReader) {
+    // create scanner
+    if (!codeReader) {
 
-  codeReader =
-    new ZXing.BrowserMultiFormatReader();
+      codeReader =
+        new ZXing.BrowserMultiFormatReader();
 
-}
-    // Start camera
+    }
+
+    // request camera
     stream =
       await navigator.mediaDevices.getUserMedia({
 
         video: {
 
-          facingMode: {
-            ideal: "environment"
-          },
+          facingMode: "environment",
 
           width: {
-            ideal: 1920
+            ideal: 1280
           },
 
           height: {
-            ideal: 1080
+            ideal: 720
           }
 
         }
@@ -59,7 +146,10 @@ async function startScanner() {
 
     video.srcObject = stream;
 
-    video.setAttribute("playsinline", true);
+    video.setAttribute(
+      "playsinline",
+      true
+    );
 
     await video.play();
 
@@ -79,9 +169,11 @@ async function startScanner() {
 
           scanning = false;
 
-          const code = result.getText();
+          const code =
+            result.getText();
 
-          barcodeInput.value = code;
+          barcodeInput.value =
+            code;
 
           status.innerText =
             "Scanned: " + code;
@@ -90,19 +182,25 @@ async function startScanner() {
 
           // vibration
           if (navigator.vibrate) {
+
             navigator.vibrate(200);
+
           }
 
           // stop camera
           if (stream) {
+
             stream
               .getTracks()
-              .forEach(track => track.stop());
+              .forEach(track => {
+                track.stop();
+              });
+
           }
 
           codeReader.reset();
 
-          // Send to Apps Script
+          // SEND TO APPS SCRIPT
           fetch(
             "https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec",
             {
@@ -110,7 +208,8 @@ async function startScanner() {
               method: "POST",
 
               headers: {
-                "Content-Type": "application/json"
+                "Content-Type":
+                  "application/json"
               },
 
               body: JSON.stringify({
@@ -120,10 +219,14 @@ async function startScanner() {
             }
           )
 
-          .then(response => response.text())
+          .then(response => {
+            return response.text();
+          })
 
           .then(data => {
+
             console.log(data);
+
           })
 
           .catch(error => {
@@ -137,12 +240,14 @@ async function startScanner() {
 
         }
 
-        // Ignore normal scan misses
+        // ignore normal misses
         if (
           err &&
           !(err instanceof ZXing.NotFoundException)
         ) {
+
           console.log(err);
+
         }
 
       }
@@ -165,3 +270,6 @@ async function startScanner() {
 }
 
 </script>
+
+</body>
+</html>
