@@ -39,11 +39,6 @@ button {
   border-radius: 10px;
   background: #4285f4;
   color: white;
-  cursor: pointer;
-}
-
-button:active {
-  background: #3367d6;
 }
 
 input {
@@ -51,15 +46,12 @@ input {
   padding: 12px;
   margin-top: 10px;
   font-size: 16px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
   box-sizing: border-box;
 }
 
 #status {
   margin-top: 12px;
   font-weight: bold;
-  min-height: 24px;
 }
 
 </style>
@@ -68,13 +60,13 @@ input {
 
 <body>
 
-<h2>Household Inventory Scanner</h2>
+<h2>Inventory Barcode Scanner</h2>
 
 <button onclick="startScanner()">
   Start Scan
 </button>
 
-<video id="video"></video>
+<video id="video" playsinline></video>
 
 <div id="status"></div>
 
@@ -84,15 +76,10 @@ input {
 
 <script>
 
-let codeReader = null;
-let stream = null;
-let scanning = false;
+let codeReader;
+let controls;
 
 async function startScanner() {
-
-  if (scanning) return;
-
-  scanning = true;
 
   const status =
     document.getElementById("status");
@@ -103,163 +90,115 @@ async function startScanner() {
   const barcodeInput =
     document.getElementById("barcode");
 
-  status.innerText =
-    "Starting camera...";
+  status.innerText = "Opening camera...";
 
   try {
 
-    // stop old camera
-    if (stream) {
-
-      stream
-        .getTracks()
-        .forEach(track => track.stop());
-
+    // reset previous scanner
+    if (controls) {
+      controls.stop();
     }
 
-    // create scanner
     codeReader =
       new ZXing.BrowserMultiFormatReader();
 
-    // open camera
-    stream =
-      await navigator.mediaDevices.getUserMedia({
+    // list cameras
+    const devices =
+      await ZXing.BrowserCodeReader
+        .listVideoInputDevices();
 
-        video: {
+    if (devices.length === 0) {
 
-          facingMode: "environment",
+      status.innerText =
+        "No camera found";
 
-          width: {
-            ideal: 1280
-          },
+      return;
+    }
 
-          height: {
-            ideal: 720
-          }
+    // prefer rear camera
+    let selectedDeviceId =
+      devices[0].deviceId;
 
-        },
+    devices.forEach(device => {
 
-        audio: false
+      const label =
+        device.label.toLowerCase();
 
-      });
-
-    video.srcObject = stream;
-
-    video.setAttribute(
-      "playsinline",
-      true
-    );
-
-    await video.play();
-
-    status.innerText =
-      "Scanning...";
-
-    // START BARCODE SCAN
-    codeReader.decodeFromVideoDevice(
-
-      null,
-      video,
-
-      (result, err) => {
-
-        // SUCCESS
-        if (result) {
-
-          const code =
-            result.text ||
-            result.getText();
-
-          console.log(
-            "FOUND:",
-            code
-          );
-
-          barcodeInput.value =
-            code;
-
-          status.innerText =
-            "Scanned: " + code;
-
-          scanning = false;
-
-          // vibrate phone
-          if (navigator.vibrate) {
-
-            navigator.vibrate(200);
-
-          }
-
-          // stop camera
-          if (stream) {
-
-            stream
-              .getTracks()
-              .forEach(track => track.stop());
-
-          }
-
-          codeReader.reset();
-
-          // send to Apps Script
-          fetch(
-            "https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec",
-            {
-
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json"
-              },
-
-              body: JSON.stringify({
-                barcode: code
-              })
-
-            }
-          )
-
-          .then(r => r.text())
-
-          .then(data => {
-
-            console.log(data);
-
-          })
-
-          .catch(error => {
-
-            console.error(error);
-
-            status.innerText =
-              "Error sending to sheet";
-
-          });
-
-        }
-
-        // ignore normal misses
-        if (
-          err &&
-          err.name !== "NotFoundException"
-        ) {
-
-          console.log(err);
-
-        }
-
+      if (
+        label.includes("back") ||
+        label.includes("rear") ||
+        label.includes("environment")
+      ) {
+        selectedDeviceId = device.deviceId;
       }
 
-    );
+    });
+
+    status.innerText = "Scanning UPC...";
+
+    controls =
+      await codeReader.decodeFromVideoDevice(
+
+        selectedDeviceId,
+
+        video,
+
+        (result, err) => {
+
+          // SUCCESS
+          if (result) {
+
+            const code =
+              result.getText();
+
+            barcodeInput.value = code;
+
+            status.innerText =
+              "Scanned: " + code;
+
+            // vibration
+            if (navigator.vibrate) {
+              navigator.vibrate(200);
+            }
+
+            // STOP CAMERA
+            controls.stop();
+
+            // SEND TO GOOGLE SCRIPT
+            fetch(
+              "https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec",
+              {
+                method: "POST",
+
+                headers: {
+                  "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                  barcode: code
+                })
+              }
+            );
+
+          }
+
+          // ignore normal scan failures
+          if (
+            err &&
+            !(err instanceof ZXing.NotFoundException)
+          ) {
+            console.log(err);
+          }
+
+        }
+
+      );
 
   }
 
   catch (e) {
 
     console.error(e);
-
-    scanning = false;
 
     status.innerText =
       "Camera error: " + e.message;
