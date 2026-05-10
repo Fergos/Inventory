@@ -1,60 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@latest"></script>
-
-<style>
-body {
-  font-family: Arial;
-  margin: 0;
-  padding: 10px;
-  text-align: center;
-}
-
-video {
-  width: 100%;
-  border-radius: 12px;
-}
-
-button {
-  width: 100%;
-  padding: 15px;
-  font-size: 18px;
-  margin-top: 10px;
-}
-
-input {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-}
-</style>
-</head>
-
-<body>
-
-<h2>Scan Barcode</h2>
-
-<video id="video"></video>
-
-<div id="status"></div>
-
-<input id="barcode" placeholder="Scanned barcode">
-
-<button onclick="startScanner()">Start Scan</button>
-
 <script>
 
-let codeReader;
+let codeReader = null;
+
 function startScanner() {
 
-  if (codeReader !== null) {
-    codeReader.reset();
+  if (!codeReader) {
+    codeReader = new ZXing.BrowserMultiFormatReader();
   }
-
-  codeReader = new ZXing.BrowserMultiFormatReader();
 
   const video = document.getElementById("video");
 
@@ -75,26 +27,7 @@ function startScanner() {
         document.getElementById("status").innerText =
           "Scanned: " + code;
 
-        fetch("https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec", {
-          method: "POST",
-          body: JSON.stringify({ barcode: code }),
-          headers: {
-            "Content-Type": "application/json"
-          }
-        });
-
-        codeReader.reset();
-      }
-
-      if (err && !(err instanceof ZXing.NotFoundException)) {
-        console.log(err);
-      }
-    }
-  );
-}
-
-
-        // Send to Apps Script
+        // send to Apps Script
         fetch("https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec", {
           method: "POST",
           body: JSON.stringify({ barcode: code }),
@@ -114,6 +47,3 @@ function startScanner() {
 }
 
 </script>
-
-</body>
-</html>
