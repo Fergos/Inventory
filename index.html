@@ -94,7 +94,7 @@ async function startScanner() {
 
   try {
 
-    // reset previous scanner
+    // stop previous scan
     if (controls) {
       controls.stop();
     }
@@ -102,10 +102,9 @@ async function startScanner() {
     codeReader =
       new ZXing.BrowserMultiFormatReader();
 
-    // list cameras
+    // THIS IS THE FIX
     const devices =
-      await ZXing.BrowserCodeReader
-        .listVideoInputDevices();
+      await codeReader.listVideoInputDevices();
 
     if (devices.length === 0) {
 
@@ -126,15 +125,17 @@ async function startScanner() {
 
       if (
         label.includes("back") ||
-        label.includes("rear") ||
-        label.includes("environment")
+        label.includes("rear")
       ) {
-        selectedDeviceId = device.deviceId;
+
+        selectedDeviceId =
+          device.deviceId;
       }
 
     });
 
-    status.innerText = "Scanning UPC...";
+    status.innerText =
+      "Scanning UPC...";
 
     controls =
       await codeReader.decodeFromVideoDevice(
@@ -145,7 +146,6 @@ async function startScanner() {
 
         (result, err) => {
 
-          // SUCCESS
           if (result) {
 
             const code =
@@ -161,10 +161,10 @@ async function startScanner() {
               navigator.vibrate(200);
             }
 
-            // STOP CAMERA
+            // stop scanner
             controls.stop();
 
-            // SEND TO GOOGLE SCRIPT
+            // send barcode
             fetch(
               "https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec",
               {
@@ -182,7 +182,6 @@ async function startScanner() {
 
           }
 
-          // ignore normal scan failures
           if (
             err &&
             !(err instanceof ZXing.NotFoundException)
