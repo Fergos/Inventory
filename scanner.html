@@ -56,7 +56,7 @@ async function startScan() {
           alert("Scanned: " + code);
 
           // Send to Apps Script
-          fetch("YOUR_WEB_APP_URL_HERE", {
+          fetch("https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec", {
             method: "POST",
             body: JSON.stringify({ barcode: code }),
             headers: {
