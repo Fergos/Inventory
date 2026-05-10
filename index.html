@@ -78,8 +78,13 @@ input {
 
 let codeReader = null;
 let controls = null;
+let scanning = false;
 
 async function startScanner() {
+
+  if (scanning) return;
+
+  scanning = true;
 
   const status =
     document.getElementById("status");
@@ -90,27 +95,54 @@ async function startScanner() {
   const barcodeInput =
     document.getElementById("barcode");
 
-  status.innerText = "Opening camera...";
+  status.innerText =
+    "Opening camera...";
 
   try {
 
-    // stop previous scanner
+    // stop old scanner
     if (controls) {
       controls.stop();
     }
 
-    // create scanner
-    codeReader =
-      new ZXing.BrowserMultiFormatReader();
+    // UPC/EAN formats ONLY
+    const hints = new Map();
 
-    // start scanning
+    hints.set(
+      ZXing.DecodeHintType.POSSIBLE_FORMATS,
+      [
+        ZXing.BarcodeFormat.UPC_A,
+        ZXing.BarcodeFormat.UPC_E,
+        ZXing.BarcodeFormat.EAN_13,
+        ZXing.BarcodeFormat.EAN_8
+      ]
+    );
+
+    codeReader =
+      new ZXing.BrowserMultiFormatReader(hints);
+
     controls =
       await codeReader.decodeFromConstraints(
 
         {
+          audio: false,
+
           video: {
-            facingMode: "environment"
+
+            facingMode: {
+              ideal: "environment"
+            },
+
+            width: {
+              ideal: 1920
+            },
+
+            height: {
+              ideal: 1080
+            }
+
           }
+
         },
 
         video,
@@ -118,7 +150,9 @@ async function startScanner() {
         (result, err) => {
 
           // SUCCESS
-          if (result) {
+          if (result && scanning) {
+
+            scanning = false;
 
             const code =
               result.getText();
@@ -136,9 +170,9 @@ async function startScanner() {
             // stop scanner
             controls.stop();
 
-            // send barcode to Apps Script
+            // send to Apps Script
             fetch(
-              "https://script.google.com/macros/s/AKfycbwxT5rVFJfOn9ak4wWiwWJHxz1Kllp9Z-WsAXdyeNrlWHjiDKRNKh4qHUomPohvH2cV/exec",
+              "YOUR_WEBAPP_URL_HERE",
               {
                 method: "POST",
 
@@ -150,11 +184,15 @@ async function startScanner() {
                   barcode: code
                 })
               }
-            );
+            )
+            .then(r => r.text())
+            .then(data => {
+              console.log(data);
+            });
 
           }
 
-          // ignore normal misses
+          // IGNORE normal misses
           if (
             err &&
             !(err instanceof ZXing.NotFoundException)
@@ -167,11 +205,13 @@ async function startScanner() {
       );
 
     status.innerText =
-      "Scanning UPC...";
+      "Point camera at UPC barcode";
 
   }
 
   catch (e) {
+
+    scanning = false;
 
     console.error(e);
 
